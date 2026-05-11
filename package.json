@@ -1,0 +1,38 @@
+{
+  "name": "archtrack",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm:dev --workspace @archtrack/backend\" \"npm:dev --workspace @archtrack/frontend\"",
+    "dev:backend": "npm run dev --workspace @archtrack/backend",
+    "dev:frontend": "npm run dev --workspace @archtrack/frontend",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces",
+    "format": "prettier --write .",
+    "instant:login": "npx instant-cli@latest login",
+    "instant:push:schema": "npx instant-cli@latest push schema",
+    "instant:push:perms": "npx instant-cli@latest push perms"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.27.0",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/jsonwebtoken": "^9.0.10",
+    "concurrently": "^9.1.2",
+    "eslint": "^9.27.0",
+    "eslint-config-prettier": "^10.1.5",
+    "globals": "^16.1.0",
+    "prettier": "^3.5.3",
+    "typescript-eslint": "^8.32.1"
+  },
+  "dependencies": {
+    "@instantdb/admin": "^1.0.26",
+    "@instantdb/react": "^1.0.26",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "jsonwebtoken": "^9.0.3"
+  }
+}

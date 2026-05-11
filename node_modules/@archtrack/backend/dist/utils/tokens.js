@@ -1,0 +1,25 @@
+import crypto from 'node:crypto';
+import jwt from 'jsonwebtoken';
+import { env } from '../config/env.js';
+export const createAccessToken = (user) => jwt.sign({
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    type: 'access',
+}, env.JWT_ACCESS_SECRET, {
+    expiresIn: env.JWT_ACCESS_EXPIRES_IN,
+    subject: user.id,
+});
+export const verifyAccessToken = (token) => {
+    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET);
+    if (payload.type !== 'access') {
+        throw new Error('Invalid token type');
+    }
+    return {
+        id: payload.id,
+        email: payload.email,
+        role: payload.role,
+    };
+};
+export const createOpaqueRefreshToken = () => crypto.randomBytes(48).toString('base64url');
+export const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');

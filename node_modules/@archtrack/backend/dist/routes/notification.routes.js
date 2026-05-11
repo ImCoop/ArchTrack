@@ -1,0 +1,14 @@
+import { Router } from 'express';
+import { notificationController } from '../controllers/notification.controller.js';
+import { asyncHandler } from '../middleware/async-handler.js';
+import { requireAuth, requireRole } from '../middleware/auth.middleware.js';
+export const notificationRouter = Router();
+notificationRouter.use(requireAuth);
+notificationRouter.get('/', asyncHandler(notificationController.list));
+notificationRouter.post('/', requireRole('admin', 'project_manager'), asyncHandler(notificationController.create));
+notificationRouter.patch('/:id/read', asyncHandler(notificationController.markRead));
+notificationRouter.post('/read-all', asyncHandler(notificationController.markAllRead));
+notificationRouter.get('/preferences', asyncHandler(notificationController.getPreferences));
+notificationRouter.patch('/preferences', asyncHandler(notificationController.updatePreferences));
+notificationRouter.get('/email-queue', requireRole('admin'), asyncHandler(notificationController.listEmailQueue));
+notificationRouter.post('/email-queue/process', requireRole('admin'), asyncHandler(notificationController.processEmailQueue));

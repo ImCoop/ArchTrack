@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { userController } from '../controllers/user.controller.js';
+import { asyncHandler } from '../middleware/async-handler.js';
+import { requireAuth, requireRole } from '../middleware/auth.middleware.js';
+export const userRouter = Router();
+userRouter.use(requireAuth, requireRole('admin'));
+userRouter.get('/', asyncHandler(userController.list));
+userRouter.post('/', asyncHandler(userController.create));
+userRouter.patch('/:id', asyncHandler(userController.update));
+userRouter.delete('/:id', asyncHandler(userController.delete));
