@@ -90,6 +90,10 @@ export const operationsRepository = {
     });
   },
 
+  findProjectById(projectId: string) {
+    return instantRepository.findById<Project>('projects', projectId);
+  },
+
   async createProject(input: Omit<Project, 'id' | 'milestones' | 'createdAt' | 'updatedAt'>) {
     const timestamp = now();
     const project: Project = {

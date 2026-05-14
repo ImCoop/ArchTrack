@@ -6,12 +6,17 @@ export interface ProjectDocument {
   projectId?: string;
   fileName: string;
   fileType: string;
+  mimeType?: string;
   fileSize: number;
   storagePath: string;
+  storageProvider: 'local' | 'google_drive' | 'hybrid';
   revision: number;
   status: DocumentStatus;
   lockedBy?: string;
   uploadedBy: string;
+  driveFileId?: string;
+  driveViewUrl?: string;
+  lastSyncError?: string;
   createdAt: string;
   updatedAt: string;
 }

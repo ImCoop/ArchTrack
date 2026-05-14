@@ -84,5 +84,5 @@ docker compose up --build
 ## Google OAuth
 
 Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` before using Google sign-in. The default redirect URI is `http://localhost:5173/oauth/google/callback`.
-Google sign-in requests Gmail send access so linked accounts can send queued ArchTrack notification emails.
-The notification email worker runs every `EMAIL_QUEUE_INTERVAL_MS` milliseconds by default. Set it to `0` to disable background processing during local troubleshooting.
+Google sign-in requests Gmail send access plus Google Drive file access so linked accounts can send queued ArchTrack notification emails and create project Drive folders.
+The notification email worker runs every `EMAIL_QUEUE_INTERVAL_MS` milliseconds by default, and the overdue invoice sweep runs every `JOB_SWEEP_INTERVAL_MS` milliseconds. Set either one to `0` to disable that background processing during local troubleshooting.

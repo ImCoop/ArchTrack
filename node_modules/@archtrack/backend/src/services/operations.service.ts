@@ -1,10 +1,20 @@
 import { operationsRepository } from '../repositories/operations.repository.js';
+import { userRepository } from '../repositories/user.repository.js';
 import type { AuthenticatedUser } from '../types/auth.js';
 import type { Customer, Project, Task } from '../types/operations.js';
 import { HttpError } from '../utils/http-error.js';
+import { googleWorkspaceService } from './googleWorkspace.service.js';
 import { notificationService } from './notification.service.js';
 
 const notFound = (label: string) => new HttpError(404, `${label} not found.`);
+const extractDriveFolderId = (value: string) => {
+  const trimmed = value.trim();
+  const urlMatch = trimmed.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  if (urlMatch) return urlMatch[1];
+  const queryMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (queryMatch) return queryMatch[1];
+  return trimmed;
+};
 
 export const customerService = {
   list: (filters?: { search?: string; status?: Customer['status'] }) => operationsRepository.listCustomers(filters),
@@ -67,6 +77,78 @@ export const projectService = {
     const project = await operationsRepository.addMilestone(id, input);
     if (!project) throw notFound('Project');
     return project;
+  },
+  async createDriveFolder(id: string, user: AuthenticatedUser, folderName?: string) {
+    const project = await operationsRepository.findProjectById(id);
+    if (!project) throw notFound('Project');
+
+    if (project.driveFolderId && project.driveFolderUrl) {
+      return project;
+    }
+
+    const fullUser = await userRepository.findById(user.id);
+    if (!fullUser?.googleRefreshToken) {
+      throw new HttpError(409, 'Link your Google account again to enable Drive folders.');
+    }
+
+    const createdFolder = await googleWorkspaceService.createDriveFolder({
+      refreshToken: fullUser.googleRefreshToken,
+      name: folderName?.trim() || project.projectName,
+      parentFolderId: undefined,
+    });
+
+    const updated = await operationsRepository.updateProject(id, {
+      driveFolderId: createdFolder.id,
+      driveFolderUrl: createdFolder.webViewLink,
+      driveFolderName: createdFolder.name,
+    });
+    if (!updated) throw notFound('Project');
+
+    await notificationService.notifyRole('project_manager', {
+      type: 'workflow',
+      title: 'Drive folder linked',
+      message: `${updated.projectName} now has a Google Drive folder.`,
+      link: '/projects',
+      emailQueued: false,
+    });
+
+    return updated;
+  },
+  async attachDriveFolder(id: string, user: AuthenticatedUser, folder: string, folderName?: string) {
+    const project = await operationsRepository.findProjectById(id);
+    if (!project) throw notFound('Project');
+
+    const fullUser = await userRepository.findById(user.id);
+    if (!fullUser?.googleRefreshToken) {
+      throw new HttpError(409, 'Link your Google account again to enable Drive folders.');
+    }
+
+    const folderId = extractDriveFolderId(folder);
+    const driveFolder = await googleWorkspaceService.getDriveFile({
+      refreshToken: fullUser.googleRefreshToken,
+      fileId: folderId,
+    });
+
+    if (driveFolder.mimeType && driveFolder.mimeType !== 'application/vnd.google-apps.folder') {
+      throw new HttpError(400, 'The selected Google Drive item is not a folder.');
+    }
+
+    const updated = await operationsRepository.updateProject(id, {
+      driveFolderId: driveFolder.id,
+      driveFolderUrl: driveFolder.webViewLink ?? `https://drive.google.com/drive/folders/${driveFolder.id}`,
+      driveFolderName: folderName?.trim() || driveFolder.name || project.projectName,
+    });
+    if (!updated) throw notFound('Project');
+
+    await notificationService.notifyRole('project_manager', {
+      type: 'workflow',
+      title: 'Drive folder attached',
+      message: `${updated.projectName} is now linked to an existing Google Drive folder.`,
+      link: '/projects',
+      emailQueued: false,
+    });
+
+    return updated;
   },
 };
 

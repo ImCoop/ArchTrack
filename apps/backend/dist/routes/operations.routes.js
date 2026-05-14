@@ -18,6 +18,8 @@ projectRouter.post('/', asyncHandler(projectController.create));
 projectRouter.patch('/:id', asyncHandler(projectController.update));
 projectRouter.delete('/:id', asyncHandler(projectController.delete));
 projectRouter.post('/:id/milestones', asyncHandler(projectController.addMilestone));
+projectRouter.post('/:id/drive-folder', asyncHandler(projectController.createDriveFolder));
+projectRouter.post('/:id/attach-drive-folder', asyncHandler(projectController.attachDriveFolder));
 taskRouter.use(requireAuth);
 taskRouter.get('/', asyncHandler(taskController.list));
 taskRouter.post('/', asyncHandler(taskController.create));

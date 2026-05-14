@@ -50,6 +50,9 @@ export interface Project {
   priority: Priority;
   dueDate?: string;
   assignedTo?: string;
+  driveFolderId?: string;
+  driveFolderUrl?: string;
+  driveFolderName?: string;
   milestones: Milestone[];
   createdBy: string;
   createdAt: string;

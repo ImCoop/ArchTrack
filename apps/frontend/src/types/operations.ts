@@ -26,6 +26,9 @@ export interface Project {
   priority: Priority;
   dueDate?: string;
   assignedTo?: string;
+  driveFolderId?: string;
+  driveFolderUrl?: string;
+  driveFolderName?: string;
   milestones: Array<{ id: string; title: string; dueDate?: string; completed: boolean }>;
 }
 

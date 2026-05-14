@@ -1,7 +1,7 @@
 import { apiClient } from '../../api/client';
 import type { DocumentStatus, Invoice, InvoiceStatus, ProjectDocument, Quote, QuoteStatus, TimeEntry, TimeEntryStatus } from '../../types/business';
 
-async function downloadPdf(path: string, fallbackFilename: string) {
+async function downloadFile(path: string, fallbackFilename: string) {
   const response = await apiClient.get(path, { responseType: 'blob' });
   const blobUrl = window.URL.createObjectURL(response.data);
   const link = window.document.createElement('a');
@@ -23,7 +23,7 @@ export const documentApi = {
     });
     return data.documents;
   },
-  async create(input: { projectId?: string; fileName: string; fileType: ProjectDocument['fileType']; fileSize: number; status: DocumentStatus }) {
+  async create(input: { projectId?: string; fileName: string; fileType: ProjectDocument['fileType']; fileSize: number; status: DocumentStatus; mimeType?: string; fileContentBase64?: string }) {
     const { data } = await apiClient.post<{ document: ProjectDocument }>('/documents', input);
     return data.document;
   },
@@ -31,12 +31,15 @@ export const documentApi = {
     const { data } = await apiClient.patch<{ document: ProjectDocument }>(`/documents/${id}`, input);
     return data.document;
   },
-  async revise(id: string, input: { fileName: string; fileType: ProjectDocument['fileType']; fileSize: number }) {
+  async revise(id: string, input: { fileName: string; fileType: ProjectDocument['fileType']; fileSize: number; mimeType?: string; fileContentBase64?: string }) {
     const { data } = await apiClient.post<{ document: ProjectDocument }>(`/documents/${id}/revisions`, input);
     return data.document;
   },
   async delete(id: string) {
     await apiClient.delete(`/documents/${id}`);
+  },
+  async download(id: string, fileName: string) {
+    await downloadFile(`/documents/${id}/download`, fileName);
   },
 };
 
@@ -81,7 +84,7 @@ export const quoteApi = {
     return data.invoice;
   },
   async downloadPdf(id: string) {
-    await downloadPdf(`/quotes/${id}/pdf`, `quote-${id}.pdf`);
+    await downloadFile(`/quotes/${id}/pdf`, `quote-${id}.pdf`);
   },
 };
 
@@ -113,6 +116,6 @@ export const invoiceApi = {
     return data.invoice;
   },
   async downloadPdf(id: string) {
-    await downloadPdf(`/invoices/${id}/pdf`, `invoice-${id}.pdf`);
+    await downloadFile(`/invoices/${id}/pdf`, `invoice-${id}.pdf`);
   },
 };

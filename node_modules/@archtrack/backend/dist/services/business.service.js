@@ -1,6 +1,10 @@
 import crypto from 'node:crypto';
 import { businessRepository } from '../repositories/business.repository.js';
+import { operationsRepository } from '../repositories/operations.repository.js';
+import { userRepository } from '../repositories/user.repository.js';
 import { HttpError } from '../utils/http-error.js';
+import { fileStorageService } from './fileStorage.service.js';
+import { googleWorkspaceService } from './googleWorkspace.service.js';
 import { calculateInvoiceTotals } from './invoiceCalculator.js';
 import { notificationService } from './notification.service.js';
 const notFound = (label) => new HttpError(404, `${label} not found.`);
@@ -15,12 +19,45 @@ export const documentService = {
     list: (filters) => businessRepository.listDocuments(filters),
     async create(input, user) {
         const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const storagePath = `${crypto.randomUUID()}-${safeName}`;
+        const bytes = input.fileContentBase64 ? Buffer.from(input.fileContentBase64, 'base64') : undefined;
+        const project = input.projectId ? await operationsRepository.findProjectById(input.projectId) : undefined;
+        const uploader = await userRepository.findById(user.id);
+        let driveFileId;
+        let driveViewUrl;
+        let lastSyncError;
+        let storageProvider = 'local';
+        if (bytes) {
+            await fileStorageService.save(storagePath, bytes);
+        }
+        if (bytes && project?.driveFolderId && uploader?.googleRefreshToken) {
+            try {
+                const uploaded = await googleWorkspaceService.uploadDriveFile({
+                    refreshToken: uploader.googleRefreshToken,
+                    parentFolderId: project.driveFolderId,
+                    fileName: safeName,
+                    mimeType: input.mimeType ?? 'application/octet-stream',
+                    bytes,
+                });
+                driveFileId = uploaded.id;
+                driveViewUrl = uploaded.webViewLink ?? uploaded.webContentLink;
+                storageProvider = 'hybrid';
+            }
+            catch (error) {
+                lastSyncError = error instanceof Error ? error.message : 'Drive upload failed.';
+            }
+        }
         const document = await businessRepository.createDocument({
             ...input,
             fileName: safeName,
+            mimeType: input.mimeType,
             revision: 1,
-            storagePath: `uploads/${crypto.randomUUID()}-${safeName}`,
+            storagePath,
+            storageProvider,
             uploadedBy: user.id,
+            driveFileId,
+            driveViewUrl,
+            lastSyncError,
         });
         await notificationService.notifyRole('project_manager', {
             type: 'workflow',
@@ -44,17 +81,65 @@ export const documentService = {
         const [existing] = (await businessRepository.listDocuments({})).filter((item) => item.id === id);
         if (!existing)
             throw notFound('Document');
+        const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const storagePath = `${crypto.randomUUID()}-${safeName}`;
+        const bytes = input.fileContentBase64 ? Buffer.from(input.fileContentBase64, 'base64') : undefined;
+        const project = existing.projectId ? await operationsRepository.findProjectById(existing.projectId) : undefined;
+        const uploader = await userRepository.findById(user.id);
+        let driveFileId;
+        let driveViewUrl;
+        let lastSyncError;
+        let storageProvider = bytes ? 'local' : existing.storageProvider;
+        if (bytes) {
+            await fileStorageService.save(storagePath, bytes);
+        }
+        if (bytes && project?.driveFolderId && uploader?.googleRefreshToken) {
+            try {
+                const uploaded = await googleWorkspaceService.uploadDriveFile({
+                    refreshToken: uploader.googleRefreshToken,
+                    parentFolderId: project.driveFolderId,
+                    fileName: safeName,
+                    mimeType: input.mimeType ?? existing.mimeType ?? 'application/octet-stream',
+                    bytes,
+                });
+                driveFileId = uploaded.id;
+                driveViewUrl = uploaded.webViewLink ?? uploaded.webContentLink;
+                storageProvider = 'hybrid';
+            }
+            catch (error) {
+                lastSyncError = error instanceof Error ? error.message : 'Drive upload failed.';
+            }
+        }
         const document = await businessRepository.updateDocument(id, {
             ...input,
-            fileName: input.fileName.replace(/[^a-zA-Z0-9._-]/g, '_'),
+            fileName: safeName,
+            mimeType: input.mimeType ?? existing.mimeType,
+            storagePath: bytes ? storagePath : existing.storagePath,
+            storageProvider,
             revision: existing.revision + 1,
             uploadedBy: user.id,
             status: 'review',
             lockedBy: undefined,
+            driveFileId: driveFileId ?? existing.driveFileId,
+            driveViewUrl: driveViewUrl ?? existing.driveViewUrl,
+            lastSyncError,
         });
         if (!document)
             throw notFound('Document');
         return document;
+    },
+    async download(id) {
+        const [document] = (await businessRepository.listDocuments({})).filter((item) => item.id === id);
+        if (!document)
+            throw notFound('Document');
+        const exists = await fileStorageService.exists(document.storagePath);
+        if (!exists) {
+            throw new HttpError(404, 'Document file is not available for download.');
+        }
+        return {
+            document,
+            absolutePath: fileStorageService.resolve(document.storagePath),
+        };
     },
     async delete(id) {
         const deleted = await businessRepository.deleteDocument(id);
@@ -231,5 +316,24 @@ export const invoiceService = {
         const deleted = await businessRepository.deleteInvoice(id);
         if (!deleted)
             throw notFound('Invoice');
+    },
+    async markDueInvoicesOverdue() {
+        const today = new Date().toISOString().slice(0, 10);
+        const invoices = await businessRepository.listInvoices({ status: 'sent' });
+        const overdue = invoices.filter((invoice) => invoice.dueDate && invoice.dueDate < today);
+        for (const invoice of overdue) {
+            const updated = await businessRepository.updateInvoice(invoice.id, { status: 'overdue' });
+            if (!updated)
+                continue;
+            await businessRepository.appendInvoiceAudit(invoice.id, { userId: 'system', action: 'status sent -> overdue (job)' });
+            await notificationService.notifyRole('admin', {
+                type: 'deadline',
+                title: 'Invoice overdue',
+                message: `${invoice.invoiceNumber} is now overdue.`,
+                link: '/invoices',
+                emailQueued: true,
+            });
+        }
+        return overdue.length;
     },
 };

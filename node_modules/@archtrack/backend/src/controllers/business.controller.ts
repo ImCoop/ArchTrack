@@ -39,6 +39,10 @@ export const documentController = {
     await documentService.delete(param(request, 'id'));
     response.status(204).send();
   },
+  async download(request: Request, response: Response) {
+    const { document, absolutePath } = await documentService.download(param(request, 'id'));
+    response.download(absolutePath, document.fileName);
+  },
 };
 
 export const timeController = {

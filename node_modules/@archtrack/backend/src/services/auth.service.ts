@@ -48,7 +48,7 @@ const issueTokenPair = async (user: User) => {
   };
 };
 
-const googleScopes = ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/gmail.send'];
+const googleScopes = ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/drive.file'];
 
 interface GoogleTokenResponse {
   access_token: string;

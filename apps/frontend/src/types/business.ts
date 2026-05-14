@@ -6,12 +6,17 @@ export interface ProjectDocument {
   projectId?: string;
   fileName: string;
   fileType: 'DWG' | 'DXF' | 'PDF' | 'STEP' | 'DOCX' | 'XLSX' | 'ZIP';
+  mimeType?: string;
   fileSize: number;
   storagePath: string;
+  storageProvider: 'local' | 'google_drive' | 'hybrid';
   revision: number;
   status: DocumentStatus;
   lockedBy?: string;
   uploadedBy: string;
+  driveFileId?: string;
+  driveViewUrl?: string;
+  lastSyncError?: string;
 }
 
 export const timeEntryStatuses = ['draft', 'submitted', 'approved'] as const;

@@ -59,6 +59,14 @@ export const projectApi = {
     const { data } = await apiClient.post<{ project: Project }>(`/projects/${id}/milestones`, input);
     return data.project;
   },
+  async createDriveFolder(id: string, folderName?: string) {
+    const { data } = await apiClient.post<{ project: Project }>(`/projects/${id}/drive-folder`, { folderName });
+    return data.project;
+  },
+  async attachDriveFolder(id: string, folder: string, folderName?: string) {
+    const { data } = await apiClient.post<{ project: Project }>(`/projects/${id}/attach-drive-folder`, { folder, folderName });
+    return data.project;
+  },
 };
 
 export const taskApi = {

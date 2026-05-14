@@ -12,8 +12,10 @@ export const documentSchema = z.object({
   projectId: z.string().optional(),
   fileName: z.string().min(1).max(220),
   fileType: z.enum(['DWG', 'DXF', 'PDF', 'STEP', 'DOCX', 'XLSX', 'ZIP']),
+  mimeType: z.string().optional(),
   fileSize: z.coerce.number().min(1).max(50 * 1024 * 1024),
   status: z.enum(documentStatuses).default('draft'),
+  fileContentBase64: z.string().min(1).optional(),
 });
 
 export const updateDocumentSchema = documentSchema.partial().extend({

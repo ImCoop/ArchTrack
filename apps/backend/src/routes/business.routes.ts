@@ -14,6 +14,7 @@ documentRouter.get('/', asyncHandler(documentController.list));
 documentRouter.post('/', asyncHandler(documentController.create));
 documentRouter.patch('/:id', asyncHandler(documentController.update));
 documentRouter.post('/:id/revisions', asyncHandler(documentController.revise));
+documentRouter.get('/:id/download', asyncHandler(documentController.download));
 documentRouter.delete('/:id', asyncHandler(documentController.delete));
 
 timeRouter.use(requireAuth);

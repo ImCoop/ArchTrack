@@ -40,12 +40,24 @@ export const projectSchema = z.object({
   priority: z.enum(projectPriorities).default('medium'),
   dueDate: z.string().optional(),
   assignedTo: z.string().optional(),
+  driveFolderId: z.string().optional(),
+  driveFolderUrl: z.string().url().optional(),
+  driveFolderName: z.string().optional(),
 });
 
 export const milestoneSchema = z.object({
   title: z.string().min(1).max(160),
   dueDate: z.string().optional(),
   completed: z.boolean().default(false),
+});
+
+export const createDriveFolderSchema = z.object({
+  folderName: z.string().min(1).max(160).optional(),
+});
+
+export const attachDriveFolderSchema = z.object({
+  folder: z.string().min(1).max(500),
+  folderName: z.string().min(1).max(160).optional(),
 });
 
 export const listTasksSchema = z.object({

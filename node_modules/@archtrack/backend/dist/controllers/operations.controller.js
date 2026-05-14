@@ -1,5 +1,5 @@
 import { customerService, projectService, taskService } from '../services/operations.service.js';
-import { customerContactSchema, customerSchema, listCustomersSchema, listProjectsSchema, listTasksSchema, milestoneSchema, noteSchema, projectSchema, taskSchema, } from '../utils/operations.schemas.js';
+import { attachDriveFolderSchema, createDriveFolderSchema, customerContactSchema, customerSchema, listCustomersSchema, listProjectsSchema, listTasksSchema, milestoneSchema, noteSchema, projectSchema, taskSchema, } from '../utils/operations.schemas.js';
 const param = (request, name) => {
     const value = request.params[name];
     return Array.isArray(value) ? value[0] : value;
@@ -42,6 +42,14 @@ export const projectController = {
     },
     async addMilestone(request, response) {
         response.status(201).json({ project: await projectService.addMilestone(param(request, 'id'), milestoneSchema.parse(request.body)) });
+    },
+    async createDriveFolder(request, response) {
+        const input = createDriveFolderSchema.parse(request.body);
+        response.status(201).json({ project: await projectService.createDriveFolder(param(request, 'id'), request.user, input.folderName) });
+    },
+    async attachDriveFolder(request, response) {
+        const input = attachDriveFolderSchema.parse(request.body);
+        response.status(201).json({ project: await projectService.attachDriveFolder(param(request, 'id'), request.user, input.folder, input.folderName) });
     },
 };
 export const taskController = {

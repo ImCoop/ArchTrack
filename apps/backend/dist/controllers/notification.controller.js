@@ -1,4 +1,5 @@
 import { notificationService } from '../services/notification.service.js';
+import { backgroundJobService } from '../services/notification.worker.js';
 import { createNotificationSchema, listNotificationsSchema, updateNotificationPreferencesSchema, } from '../utils/notification.schemas.js';
 const param = (request, name) => {
     const value = request.params[name];
@@ -36,8 +37,19 @@ export const notificationController = {
         const queue = await notificationService.listEmailQueue();
         response.json({ queue });
     },
+    async emailQueueSummary(_request, response) {
+        const summary = await notificationService.getEmailQueueSummary();
+        response.json({ summary });
+    },
     async processEmailQueue(_request, response) {
         const queue = await notificationService.processEmailQueue();
         response.json({ queue });
+    },
+    async workerStatus(_request, response) {
+        response.json({ status: backgroundJobService.getStatus() });
+    },
+    async runJobs(_request, response) {
+        const result = await backgroundJobService.runAll();
+        response.json(result);
     },
 };

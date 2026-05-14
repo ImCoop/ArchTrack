@@ -11,4 +11,7 @@ notificationRouter.post('/read-all', asyncHandler(notificationController.markAll
 notificationRouter.get('/preferences', asyncHandler(notificationController.getPreferences));
 notificationRouter.patch('/preferences', asyncHandler(notificationController.updatePreferences));
 notificationRouter.get('/email-queue', requireRole('admin'), asyncHandler(notificationController.listEmailQueue));
+notificationRouter.get('/email-queue/summary', requireRole('admin'), asyncHandler(notificationController.emailQueueSummary));
 notificationRouter.post('/email-queue/process', requireRole('admin'), asyncHandler(notificationController.processEmailQueue));
+notificationRouter.get('/worker-status', requireRole('admin'), asyncHandler(notificationController.workerStatus));
+notificationRouter.post('/jobs/run', requireRole('admin'), asyncHandler(notificationController.runJobs));

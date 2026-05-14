@@ -11,6 +11,7 @@ VITE_INSTANT_APP_ID=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=http://localhost:5173/oauth/google/callback
+GOOGLE_DRIVE_PARENT_FOLDER_ID=
 ```
 
 ## InstantDB
@@ -37,7 +38,7 @@ The schema lives in `instant.schema.ts`. Permissions live in `instant.perms.ts` 
 2. Create or select a Google Cloud project.
 3. Configure the OAuth consent screen.
 4. Add test users while the app is in testing mode.
-5. Enable the Gmail API if you want ArchTrack notification emails to send through Gmail.
+5. Enable the Gmail API and Google Drive API if you want ArchTrack notification emails and project Drive folders.
 6. Create an OAuth Client ID with application type `Web application`.
 7. Add this authorized JavaScript origin:
 
@@ -53,7 +54,8 @@ http://localhost:5173/oauth/google/callback
 
 9. Copy the client ID and client secret into `.env`.
 
-The backend requests `openid`, `email`, `profile`, and Gmail send scope. The redirect URI in Google Cloud must exactly match `GOOGLE_REDIRECT_URI`.
+The backend requests `openid`, `email`, `profile`, Gmail send, and Drive file access. The redirect URI in Google Cloud must exactly match `GOOGLE_REDIRECT_URI`.
+If a user linked Google before Drive support was added, they should sign in with Google again so the refreshed token includes the Drive scope.
 
 ## Check Configuration
 

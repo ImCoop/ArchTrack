@@ -33,3 +33,10 @@ export interface EmailQueueItem {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface EmailQueueSummary {
+  queued: number;
+  sent: number;
+  failed: number;
+  lastProcessedAt?: string;
+}

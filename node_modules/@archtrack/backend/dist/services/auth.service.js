@@ -37,7 +37,7 @@ const issueTokenPair = async (user) => {
         refreshTokenId: refreshTokenRecord.id,
     };
 };
-const googleScopes = ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/gmail.send'];
+const googleScopes = ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/drive.file'];
 const assertGoogleConfigured = () => {
     if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
         throw new HttpError(503, 'Google OAuth is not configured.');

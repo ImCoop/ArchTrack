@@ -2,6 +2,7 @@ import { notificationRepository } from '../repositories/notification.repository.
 import { userRepository } from '../repositories/user.repository.js';
 import { env } from '../config/env.js';
 import { HttpError } from '../utils/http-error.js';
+import { googleWorkspaceService } from './googleWorkspace.service.js';
 const maxEmailAttempts = 3;
 const encodeBase64Url = (value) => Buffer.from(value)
     .toString('base64')
@@ -22,44 +23,14 @@ const buildNotificationEmail = (input) => {
     lines.push('', 'This notification was sent by ArchTrack.');
     return lines.join('\r\n');
 };
-const refreshGoogleAccessToken = async (refreshToken) => {
-    if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
-        throw new HttpError(503, 'Google OAuth is not configured.');
-    }
-    const response = await fetch('https://oauth2.googleapis.com/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-            client_id: env.GOOGLE_CLIENT_ID,
-            client_secret: env.GOOGLE_CLIENT_SECRET,
-            refresh_token: refreshToken,
-            grant_type: 'refresh_token',
-        }),
-    });
-    if (!response.ok) {
-        throw new Error('Google access token refresh failed.');
-    }
-    return (await response.json());
-};
 const sendGmailNotification = async (input) => {
-    const tokens = await refreshGoogleAccessToken(input.refreshToken);
     const raw = encodeBase64Url(buildNotificationEmail({
         to: input.to,
         subject: input.subject,
         message: input.message,
         link: input.link,
     }));
-    const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${tokens.access_token}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ raw }),
-    });
-    if (!response.ok) {
-        throw new Error('Gmail send failed.');
-    }
+    await googleWorkspaceService.sendGmailMessage({ refreshToken: input.refreshToken, raw });
 };
 const formatError = (error) => (error instanceof Error ? error.message : 'Email send failed.');
 export const notificationService = {
@@ -105,6 +76,15 @@ export const notificationService = {
     },
     listEmailQueue() {
         return notificationRepository.listEmailQueue();
+    },
+    async getEmailQueueSummary() {
+        const queue = await notificationRepository.listEmailQueue();
+        return {
+            queued: queue.filter((item) => item.status === 'queued').length,
+            sent: queue.filter((item) => item.status === 'sent').length,
+            failed: queue.filter((item) => item.status === 'failed').length,
+            lastProcessedAt: queue.filter((item) => item.sentAt).sort((a, b) => (b.sentAt ?? '').localeCompare(a.sentAt ?? ''))[0]?.sentAt,
+        };
     },
     async processEmailQueue() {
         const queue = await notificationRepository.listPendingEmailQueue(maxEmailAttempts);

@@ -71,6 +71,9 @@ export const operationsRepository = {
             return matchesSearch && matchesStatus && matchesCustomer;
         });
     },
+    findProjectById(projectId) {
+        return instantRepository.findById('projects', projectId);
+    },
     async createProject(input) {
         const timestamp = now();
         const project = {

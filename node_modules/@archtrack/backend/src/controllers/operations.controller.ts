@@ -2,6 +2,8 @@ import type { Request, Response } from 'express';
 
 import { customerService, projectService, taskService } from '../services/operations.service.js';
 import {
+  attachDriveFolderSchema,
+  createDriveFolderSchema,
   customerContactSchema,
   customerSchema,
   listCustomersSchema,
@@ -57,6 +59,14 @@ export const projectController = {
   },
   async addMilestone(request: Request, response: Response) {
     response.status(201).json({ project: await projectService.addMilestone(param(request, 'id'), milestoneSchema.parse(request.body)) });
+  },
+  async createDriveFolder(request: Request, response: Response) {
+    const input = createDriveFolderSchema.parse(request.body);
+    response.status(201).json({ project: await projectService.createDriveFolder(param(request, 'id'), request.user!, input.folderName) });
+  },
+  async attachDriveFolder(request: Request, response: Response) {
+    const input = attachDriveFolderSchema.parse(request.body);
+    response.status(201).json({ project: await projectService.attachDriveFolder(param(request, 'id'), request.user!, input.folder, input.folderName) });
   },
 };
 
