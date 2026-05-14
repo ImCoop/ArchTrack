@@ -32,6 +32,42 @@ scripts\dev.cmd
 docker compose up --build
 ```
 
+## Production Runner
+
+Start production services without auto updates:
+
+```bash
+npm run prod
+```
+
+Start production services with the updater enabled:
+
+```bash
+npm run prod:update
+```
+
+Or on Windows:
+
+```bat
+scripts\prod.cmd -prod
+```
+
+When `-prod` is present, the runner polls the configured git remote every couple of minutes, and if a new commit is found it will:
+
+1. stop the backend and frontend preview services
+2. pull the latest code with fast-forward only
+3. install dependencies
+4. rebuild the app
+5. restart production services
+
+Environment options:
+
+- `PROD_UPDATE_INTERVAL_MS` defaults to `120000`
+- `PROD_UPDATE_REMOTE` defaults to `origin`
+- `PROD_UPDATE_BRANCH` defaults to the current checked out branch
+
+The updater refuses to run if the production worktree has uncommitted changes.
+
 ## Auth API
 
 - `POST /api/v1/auth/register`

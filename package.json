@@ -10,6 +10,8 @@
     "dev": "concurrently \"npm:dev --workspace @archtrack/backend\" \"npm:dev --workspace @archtrack/frontend\"",
     "dev:backend": "npm run dev --workspace @archtrack/backend",
     "dev:frontend": "npm run dev --workspace @archtrack/frontend",
+    "prod": "node scripts/prod-runner.mjs",
+    "prod:update": "node scripts/prod-runner.mjs -prod",
     "build": "npm run build --workspaces",
     "lint": "npm run lint --workspaces",
     "format": "prettier --write .",
