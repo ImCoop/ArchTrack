@@ -26,3 +26,8 @@ export interface AuthResponse {
   user: User;
   accessToken: string;
 }
+
+export interface ApiErrorPayload {
+  code?: string;
+  message: string;
+}

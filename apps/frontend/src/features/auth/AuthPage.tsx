@@ -3,7 +3,8 @@ import { LockKeyhole, Mail, UserPlus } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
-import { roles, type Role } from '../../types/auth';
+import type { ApiErrorPayload, Role } from '../../types/auth';
+import { roles } from '../../types/auth';
 import { apiClient } from '../../api/client';
 import { useAuth } from './AuthContext';
 
@@ -17,19 +18,29 @@ const roleLabels: Record<Role, string> = {
   viewer: 'Viewer',
 };
 
-const getErrorMessage = (error: unknown) => {
+const getErrorDetails = (error: unknown) => {
   if (error instanceof AxiosError) {
-    return error.response?.data?.message ?? 'Unable to complete sign in.';
+    const payload = error.response?.data as ApiErrorPayload | undefined;
+
+    return {
+      code: payload?.code ?? 'REQUEST_FAILED',
+      message: payload?.message ?? 'Unable to complete sign in.',
+      status: error.response?.status,
+    };
   }
 
-  return 'Unable to complete sign in.';
+  return {
+    code: 'CLIENT_ERROR',
+    message: error instanceof Error ? error.message : 'Unable to complete sign in.',
+    status: undefined,
+  };
 };
 
 export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const { isAuthenticated, login, register } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<{ code: string; message: string; status?: number }>();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const from = (location.state as { from?: Location })?.from?.pathname ?? '/';
@@ -63,7 +74,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
 
       navigate(from, { replace: true });
     } catch (submitError) {
-      setError(getErrorMessage(submitError));
+      setError(getErrorDetails(submitError));
     } finally {
       setIsSubmitting(false);
     }
@@ -76,7 +87,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
       const { data } = await apiClient.get<{ authUrl: string }>('/auth/google/url');
       window.location.assign(data.authUrl);
     } catch (googleError) {
-      setError(getErrorMessage(googleError));
+      setError(getErrorDetails(googleError));
     }
   }
 
@@ -159,7 +170,12 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
                 </label>
               ) : null}
 
-              {error ? <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-200">{error}</p> : null}
+              {error ? (
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+                  <p className="font-semibold">{error.message}</p>
+                  <p className="mt-1 font-mono text-xs">Code: {error.code}{error.status ? ` | HTTP ${error.status}` : ''}</p>
+                </div>
+              ) : null}
 
               <button
                 className="inline-flex w-full items-center justify-center rounded-md bg-action px-4 py-2.5 font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60"

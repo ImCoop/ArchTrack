@@ -8,6 +8,7 @@ export const errorMiddleware: ErrorRequestHandler = (error, _request, response, 
 
   if (error instanceof ZodError) {
     response.status(400).json({
+      code: 'VALIDATION_FAILED',
       message: 'Validation failed.',
       issues: error.flatten(),
     });
@@ -16,6 +17,7 @@ export const errorMiddleware: ErrorRequestHandler = (error, _request, response, 
 
   if (error instanceof HttpError) {
     response.status(error.statusCode).json({
+      code: error.code ?? 'HTTP_ERROR',
       message: error.message,
     });
     return;
@@ -23,6 +25,7 @@ export const errorMiddleware: ErrorRequestHandler = (error, _request, response, 
 
   console.error(error);
   response.status(500).json({
+    code: 'UNEXPECTED_SERVER_ERROR',
     message: 'Unexpected server error.',
   });
 };

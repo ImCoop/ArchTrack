@@ -40,7 +40,7 @@ const issueTokenPair = async (user) => {
 const googleScopes = ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/drive.file'];
 const assertGoogleConfigured = () => {
     if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) {
-        throw new HttpError(503, 'Google OAuth is not configured.');
+        throw new HttpError(503, 'Google OAuth is not configured.', 'GOOGLE_OAUTH_NOT_CONFIGURED');
     }
 };
 const fetchGoogleTokens = async (code) => {
@@ -57,7 +57,7 @@ const fetchGoogleTokens = async (code) => {
         }),
     });
     if (!response.ok) {
-        throw new HttpError(401, 'Google OAuth token exchange failed.');
+        throw new HttpError(401, 'Google OAuth token exchange failed.', 'GOOGLE_TOKEN_EXCHANGE_FAILED');
     }
     return (await response.json());
 };
@@ -66,7 +66,7 @@ const fetchGoogleUserInfo = async (accessToken) => {
         headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!response.ok) {
-        throw new HttpError(401, 'Google profile lookup failed.');
+        throw new HttpError(401, 'Google profile lookup failed.', 'GOOGLE_PROFILE_LOOKUP_FAILED');
     }
     return (await response.json());
 };
@@ -74,7 +74,7 @@ export const authService = {
     async register(input) {
         const existingUser = await userRepository.findByEmail(input.email);
         if (existingUser) {
-            throw new HttpError(409, 'A user with this email already exists.');
+            throw new HttpError(409, 'A user with this email already exists.', 'AUTH_EMAIL_ALREADY_EXISTS');
         }
         const user = await userRepository.create({
             email: input.email,
@@ -93,7 +93,7 @@ export const authService = {
     async login(input) {
         const user = await userRepository.findByEmail(input.email);
         if (!user || !(await verifyPassword(input.password, user.passwordHash))) {
-            throw new HttpError(401, 'Invalid email or password.');
+            throw new HttpError(401, 'Invalid email or password.', 'AUTH_INVALID_CREDENTIALS');
         }
         const tokens = await issueTokenPair(user);
         return {
@@ -145,19 +145,19 @@ export const authService = {
     },
     async refresh(refreshToken) {
         if (!refreshToken) {
-            throw new HttpError(401, 'Refresh token required.');
+            throw new HttpError(401, 'Refresh token required.', 'AUTH_REFRESH_TOKEN_REQUIRED');
         }
         const refreshTokenRecord = await userRepository.findRefreshTokenByHash(hashToken(refreshToken));
         if (!refreshTokenRecord || refreshTokenRecord.revokedAt) {
-            throw new HttpError(401, 'Invalid refresh token.');
+            throw new HttpError(401, 'Invalid refresh token.', 'AUTH_INVALID_REFRESH_TOKEN');
         }
         if (new Date(refreshTokenRecord.expiresAt).getTime() <= Date.now()) {
             await userRepository.revokeRefreshToken(refreshTokenRecord.id);
-            throw new HttpError(401, 'Refresh token expired.');
+            throw new HttpError(401, 'Refresh token expired.', 'AUTH_REFRESH_TOKEN_EXPIRED');
         }
         const user = await userRepository.findById(refreshTokenRecord.userId);
         if (!user) {
-            throw new HttpError(401, 'User no longer exists.');
+            throw new HttpError(401, 'User no longer exists.', 'AUTH_USER_NOT_FOUND');
         }
         const tokens = await issueTokenPair(user);
         await userRepository.revokeRefreshToken(refreshTokenRecord.id, tokens.refreshTokenId);
@@ -178,7 +178,7 @@ export const authService = {
     async getCurrentUser(userId) {
         const user = await userRepository.findById(userId);
         if (!user) {
-            throw new HttpError(401, 'User no longer exists.');
+            throw new HttpError(401, 'User no longer exists.', 'AUTH_USER_NOT_FOUND');
         }
         return toPublicUser(user);
     },
