@@ -10,6 +10,8 @@ Modern web-based operations platform for a drafting and design company.
 
 ## Quick Start
 
+All app configuration lives in the root `.env` file. The backend reads it directly, and the frontend Vite build now also reads from that same root file.
+
 ```bash
 npm install --cache ./.npm-cache
 npm run dev

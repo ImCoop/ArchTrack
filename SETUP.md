@@ -5,9 +5,9 @@
 Create a local `.env` in the project root from `.env.example`, then fill in the values below. Do not commit `.env`.
 
 ```env
+API_ORIGIN=http://localhost:4000
 INSTANT_APP_ID=
 INSTANT_APP_ADMIN_TOKEN=
-VITE_INSTANT_APP_ID=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=http://localhost:5173/oauth/google/callback
@@ -18,7 +18,7 @@ GOOGLE_DRIVE_PARENT_FOLDER_ID=
 
 1. Sign in or create an account at `https://instantdb.com/dash`.
 2. Create an app for ArchTrack.
-3. Copy the app ID into `INSTANT_APP_ID` and `VITE_INSTANT_APP_ID`.
+3. Copy the app ID into `INSTANT_APP_ID`.
 4. Copy the app admin token into `INSTANT_APP_ADMIN_TOKEN`.
 5. Push the schema and permissions:
 
