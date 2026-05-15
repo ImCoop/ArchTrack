@@ -2,9 +2,9 @@ import { apiClient } from '../../api/client';
 import type { EmailQueueItem, EmailQueueSummary, Notification, NotificationPreferences, WorkerStatus } from '../../types/notification';
 
 export const notificationApi = {
-  async list(filters?: { readStatus?: 'read' | 'unread' }) {
+  async list(filters?: { readStatus?: 'read' | 'unread' | 'all' }) {
     const { data } = await apiClient.get<{ notifications: Notification[] }>('/notifications', {
-      params: filters,
+      params: { readStatus: filters?.readStatus === 'all' ? undefined : filters?.readStatus },
     });
     return data.notifications;
   },

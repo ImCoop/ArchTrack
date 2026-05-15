@@ -10,6 +10,8 @@ export interface Customer {
   status: CustomerStatus;
   contacts: Array<{ id: string; name: string; email: string; phone?: string; role?: string }>;
   notes: Array<{ id: string; body: string; createdAt: string; createdBy: string }>;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export const projectStatuses = ['planning', 'active', 'on_hold', 'completed'] as const;
@@ -30,6 +32,9 @@ export interface Project {
   driveFolderUrl?: string;
   driveFolderName?: string;
   milestones: Array<{ id: string; title: string; dueDate?: string; completed: boolean }>;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export const taskStatuses = ['todo', 'in_progress', 'blocked', 'done'] as const;
@@ -47,4 +52,7 @@ export interface Task {
   estimatedHours?: number;
   actualHours?: number;
   comments: Array<{ id: string; body: string; createdAt: string; createdBy: string }>;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }

@@ -15,7 +15,8 @@ type EntityName =
   | 'invoices'
   | 'notifications'
   | 'notificationPreferences'
-  | 'emailQueue';
+  | 'emailQueue'
+  | 'activityLogs';
 
 type RecordValue = { id: string };
 

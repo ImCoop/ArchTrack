@@ -1,4 +1,4 @@
-import { Bell, BriefcaseBusiness, Calculator, Clock, FileArchive, FileText, LayoutDashboard, LogOut, Moon, ReceiptText, Shield, Sun, Users } from 'lucide-react';
+import { Bell, BriefcaseBusiness, Calculator, CalendarDays, ClipboardList, Clock, FileArchive, FileText, LayoutDashboard, LogOut, Moon, ReceiptText, Shield, Sun, Users } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -19,10 +19,12 @@ const navigation: NavigationItem[] = [
   { label: 'CRM', to: '/crm', icon: BriefcaseBusiness },
   { label: 'Projects', to: '/projects', icon: FileText },
   { label: 'Tasks', to: '/tasks', icon: Users },
+  { label: 'Schedule', to: '/schedule', icon: CalendarDays },
   { label: 'Files', to: '/files', icon: FileArchive },
   { label: 'Time', to: '/time', icon: Clock },
   { label: 'Quotes', to: '/quotes', icon: Calculator },
   { label: 'Invoices', to: '/invoices', icon: ReceiptText },
+  { label: 'Activity', to: '/activity', icon: ClipboardList },
   { label: 'Users', to: '/users', icon: Shield, allowedRoles: ['admin'] },
 ];
 

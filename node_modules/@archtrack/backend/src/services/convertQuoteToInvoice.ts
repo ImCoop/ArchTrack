@@ -1,6 +1,7 @@
 import { businessRepository } from '../repositories/business.repository.js';
 import type { AuthenticatedUser } from '../types/auth.js';
 import { HttpError } from '../utils/http-error.js';
+import { activityService } from './activity.service.js';
 import { invoiceService } from './business.service.js';
 
 export const convertQuoteToInvoice = async (quoteId: string, user: AuthenticatedUser) => {
@@ -41,6 +42,16 @@ export const convertQuoteToInvoice = async (quoteId: string, user: Authenticated
   await businessRepository.appendInvoiceAudit(invoice.id, {
     userId: user.id,
     action: `converted quote ${quote.id}`,
+  });
+  await activityService.record({
+    entityType: 'quote',
+    entityId: quote.id,
+    action: 'converted',
+    summary: `Quote ${quote.title} was converted into invoice ${invoice.invoiceNumber}.`,
+    actorUserId: user.id,
+    relatedCustomerId: quote.customerId,
+    relatedProjectId: quote.projectId,
+    metadata: { invoiceId: invoice.id },
   });
 
   return invoice;

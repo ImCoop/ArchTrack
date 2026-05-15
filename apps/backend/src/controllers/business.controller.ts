@@ -30,13 +30,13 @@ export const documentController = {
     response.status(201).json({ document: await documentService.create(documentSchema.parse(request.body), request.user!) });
   },
   async update(request: Request, response: Response) {
-    response.json({ document: await documentService.update(param(request, 'id'), updateDocumentSchema.parse(request.body)) });
+    response.json({ document: await documentService.update(param(request, 'id'), updateDocumentSchema.parse(request.body), request.user!) });
   },
   async revise(request: Request, response: Response) {
     response.status(201).json({ document: await documentService.revise(param(request, 'id'), documentSchema.pick({ fileName: true, fileType: true, fileSize: true }).parse(request.body), request.user!) });
   },
   async delete(request: Request, response: Response) {
-    await documentService.delete(param(request, 'id'));
+    await documentService.delete(param(request, 'id'), request.user!);
     response.status(204).send();
   },
   async download(request: Request, response: Response) {
@@ -53,16 +53,16 @@ export const timeController = {
     response.status(201).json({ timeEntry: await timeService.create(timeEntrySchema.parse(request.body), request.user!) });
   },
   async update(request: Request, response: Response) {
-    response.json({ timeEntry: await timeService.update(param(request, 'id'), timeEntrySchema.partial().parse(request.body)) });
+    response.json({ timeEntry: await timeService.update(param(request, 'id'), timeEntrySchema.partial().parse(request.body), request.user!) });
   },
   async startTimer(request: Request, response: Response) {
     response.status(201).json({ timeEntry: await timeService.startTimer(timerSchema.parse(request.body), request.user!) });
   },
   async stopTimer(request: Request, response: Response) {
-    response.json({ timeEntry: await timeService.stopTimer(param(request, 'id')) });
+    response.json({ timeEntry: await timeService.stopTimer(param(request, 'id'), request.user!) });
   },
   async delete(request: Request, response: Response) {
-    await timeService.delete(param(request, 'id'));
+    await timeService.delete(param(request, 'id'), request.user!);
     response.status(204).send();
   },
 };
@@ -78,10 +78,10 @@ export const quoteController = {
     response.status(201).json({ quote: await quoteService.create(quoteSchema.parse(request.body), request.user!) });
   },
   async update(request: Request, response: Response) {
-    response.json({ quote: await quoteService.update(param(request, 'id'), quoteSchema.partial().parse(request.body)) });
+    response.json({ quote: await quoteService.update(param(request, 'id'), quoteSchema.partial().parse(request.body), request.user!) });
   },
   async delete(request: Request, response: Response) {
-    await quoteService.delete(param(request, 'id'));
+    await quoteService.delete(param(request, 'id'), request.user!);
     response.status(204).send();
   },
   async convertToInvoice(request: Request, response: Response) {
@@ -111,7 +111,7 @@ export const invoiceController = {
     response.json({ invoice: await invoiceService.update(param(request, 'id'), invoiceSchema.partial().parse(request.body), request.user!) });
   },
   async delete(request: Request, response: Response) {
-    await invoiceService.delete(param(request, 'id'));
+    await invoiceService.delete(param(request, 'id'), request.user!);
     response.status(204).send();
   },
   async send(request: Request, response: Response) {

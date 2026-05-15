@@ -17,6 +17,8 @@ export interface ProjectDocument {
   driveFileId?: string;
   driveViewUrl?: string;
   lastSyncError?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export const timeEntryStatuses = ['draft', 'submitted', 'approved'] as const;
@@ -34,6 +36,8 @@ export interface TimeEntry {
   status: TimeEntryStatus;
   startedAt?: string;
   endedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export const quoteStatuses = ['draft', 'sent', 'approved', 'rejected', 'converted'] as const;
@@ -60,6 +64,9 @@ export interface Quote {
   total: number;
   converted: boolean;
   convertedInvoiceId?: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export const invoiceStatuses = ['draft', 'sent', 'paid', 'overdue', 'void'] as const;
@@ -98,4 +105,7 @@ export interface Invoice {
   dueDate?: string;
   paidAt?: string;
   auditLog: InvoiceAuditEvent[];
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }

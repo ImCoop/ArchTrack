@@ -5,6 +5,7 @@ import helmet from 'helmet';
 
 import { env } from './config/env.js';
 import { errorMiddleware } from './middleware/error.middleware.js';
+import { activityRouter } from './routes/activity.routes.js';
 import { authRouter } from './routes/auth.routes.js';
 import { documentRouter, invoiceRouter, quoteRouter, timeRouter } from './routes/business.routes.js';
 import { healthRouter } from './routes/health.routes.js';
@@ -34,6 +35,7 @@ export const createApp = () => {
   app.use('/api/v1/projects', projectRouter);
   app.use('/api/v1/tasks', taskRouter);
   app.use('/api/v1/notifications', notificationRouter);
+  app.use('/api/v1/activity', activityRouter);
   app.use('/api/v1/documents', documentRouter);
   app.use('/api/v1/time-entries', timeRouter);
   app.use('/api/v1/quotes', quoteRouter);

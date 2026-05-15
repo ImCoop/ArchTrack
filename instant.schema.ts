@@ -161,6 +161,17 @@ const _schema = i.schema({
       createdAt: i.string().indexed(),
       updatedAt: i.string(),
     }),
+    activityLogs: i.entity({
+      entityType: i.string().indexed(),
+      entityId: i.string().indexed(),
+      action: i.string().indexed(),
+      summary: i.string(),
+      actorUserId: i.string().optional().indexed(),
+      relatedCustomerId: i.string().optional().indexed(),
+      relatedProjectId: i.string().optional().indexed(),
+      metadata: i.json().optional(),
+      createdAt: i.string().indexed(),
+    }),
   },
 });
 

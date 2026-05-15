@@ -6,6 +6,7 @@ import { userRepository } from '../repositories/user.repository.js';
 import type { AuthenticatedUser } from '../types/auth.js';
 import type { Invoice, InvoiceLineItem, ProjectDocument, Quote, QuoteLineItem, TimeEntry } from '../types/business.js';
 import { HttpError } from '../utils/http-error.js';
+import { activityService } from './activity.service.js';
 import { fileStorageService } from './fileStorage.service.js';
 import { googleWorkspaceService } from './googleWorkspace.service.js';
 import { calculateInvoiceTotals } from './invoiceCalculator.js';
@@ -82,16 +83,32 @@ export const documentService = {
       link: '/files',
       emailQueued: false,
     });
+    await activityService.record({
+      entityType: 'document',
+      entityId: document.id,
+      action: 'created',
+      summary: `Document ${document.fileName} revision ${document.revision} was uploaded.`,
+      actorUserId: user.id,
+      relatedProjectId: document.projectId,
+    });
 
     return document;
   },
 
-  async update(id: string, input: Partial<Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'>>) {
+  async update(id: string, input: Partial<Omit<ProjectDocument, 'id' | 'createdAt' | 'updatedAt'>>, user: AuthenticatedUser) {
     const document = await businessRepository.updateDocument(id, {
       ...input,
       lockedBy: input.status && input.status !== 'locked' ? undefined : input.lockedBy,
     });
     if (!document) throw notFound('Document');
+    await activityService.record({
+      entityType: 'document',
+      entityId: document.id,
+      action: 'updated',
+      summary: `Document ${document.fileName} was updated.`,
+      actorUserId: user.id,
+      relatedProjectId: document.projectId,
+    });
     return document;
   },
 
@@ -148,6 +165,14 @@ export const documentService = {
       lastSyncError,
     });
     if (!document) throw notFound('Document');
+    await activityService.record({
+      entityType: 'document',
+      entityId: document.id,
+      action: 'revised',
+      summary: `Document ${document.fileName} advanced to revision ${document.revision}.`,
+      actorUserId: user.id,
+      relatedProjectId: document.projectId,
+    });
     return document;
   },
 
@@ -166,27 +191,53 @@ export const documentService = {
     };
   },
 
-  async delete(id: string) {
+  async delete(id: string, user: AuthenticatedUser) {
+    const [existing] = (await businessRepository.listDocuments({})).filter((item) => item.id === id);
     const deleted = await businessRepository.deleteDocument(id);
     if (!deleted) throw notFound('Document');
+    await activityService.record({
+      entityType: 'document',
+      entityId: id,
+      action: 'deleted',
+      summary: `Document ${existing?.fileName ?? id} was deleted.`,
+      actorUserId: user.id,
+      relatedProjectId: existing?.projectId,
+    });
   },
 };
 
 export const timeService = {
   list: (filters?: { userId?: string; projectId?: string; status?: TimeEntry['status'] }) => businessRepository.listTimeEntries(filters),
 
-  create(input: Omit<TimeEntry, 'id' | 'userId' | 'startedAt' | 'endedAt' | 'createdAt' | 'updatedAt'>, user: AuthenticatedUser) {
-    return businessRepository.createTimeEntry({ ...input, userId: user.id });
-  },
-
-  async update(id: string, input: Partial<Omit<TimeEntry, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>) {
-    const entry = await businessRepository.updateTimeEntry(id, input);
-    if (!entry) throw notFound('Time entry');
+  async create(input: Omit<TimeEntry, 'id' | 'userId' | 'startedAt' | 'endedAt' | 'createdAt' | 'updatedAt'>, user: AuthenticatedUser) {
+    const entry = await businessRepository.createTimeEntry({ ...input, userId: user.id });
+    await activityService.record({
+      entityType: 'time_entry',
+      entityId: entry.id,
+      action: 'created',
+      summary: `A ${entry.hours.toFixed(2)} hour time entry was logged.`,
+      actorUserId: user.id,
+      relatedProjectId: entry.projectId,
+    });
     return entry;
   },
 
-  startTimer(input: { projectId?: string; taskId?: string; description?: string; billable: boolean }, user: AuthenticatedUser) {
-    return businessRepository.createTimeEntry({
+  async update(id: string, input: Partial<Omit<TimeEntry, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>, user: AuthenticatedUser) {
+    const entry = await businessRepository.updateTimeEntry(id, input);
+    if (!entry) throw notFound('Time entry');
+    await activityService.record({
+      entityType: 'time_entry',
+      entityId: entry.id,
+      action: 'updated',
+      summary: `Time entry ${entry.id} was updated.`,
+      actorUserId: user.id,
+      relatedProjectId: entry.projectId,
+    });
+    return entry;
+  },
+
+  async startTimer(input: { projectId?: string; taskId?: string; description?: string; billable: boolean }, user: AuthenticatedUser) {
+    const entry = await businessRepository.createTimeEntry({
       ...input,
       userId: user.id,
       hours: 0,
@@ -194,9 +245,18 @@ export const timeService = {
       status: 'draft',
       startedAt: new Date().toISOString(),
     });
+    await activityService.record({
+      entityType: 'time_entry',
+      entityId: entry.id,
+      action: 'timer_started',
+      summary: 'A live time tracker was started.',
+      actorUserId: user.id,
+      relatedProjectId: entry.projectId,
+    });
+    return entry;
   },
 
-  async stopTimer(id: string) {
+  async stopTimer(id: string, user: AuthenticatedUser) {
     const existing = (await businessRepository.listTimeEntries({})).find((item) => item.id === id);
     if (!existing) throw notFound('Time entry');
     if (!existing.startedAt) throw new HttpError(400, 'This time entry is not running.');
@@ -204,12 +264,29 @@ export const timeService = {
     const hours = cents((new Date(endedAt).getTime() - new Date(existing.startedAt).getTime()) / 3600000);
     const updated = await businessRepository.updateTimeEntry(id, { endedAt, hours: Math.max(hours, 0.01) });
     if (!updated) throw notFound('Time entry');
+    await activityService.record({
+      entityType: 'time_entry',
+      entityId: updated.id,
+      action: 'timer_stopped',
+      summary: `A live time tracker was stopped at ${updated.hours.toFixed(2)} hours.`,
+      actorUserId: user.id,
+      relatedProjectId: updated.projectId,
+    });
     return updated;
   },
 
-  async delete(id: string) {
+  async delete(id: string, user: AuthenticatedUser) {
+    const existing = (await businessRepository.listTimeEntries({})).find((item) => item.id === id);
     const deleted = await businessRepository.deleteTimeEntry(id);
     if (!deleted) throw notFound('Time entry');
+    await activityService.record({
+      entityType: 'time_entry',
+      entityId: id,
+      action: 'deleted',
+      summary: `Time entry ${id} was deleted.`,
+      actorUserId: user.id,
+      relatedProjectId: existing?.projectId,
+    });
   },
 };
 
@@ -222,13 +299,23 @@ export const quoteService = {
     return quote;
   },
 
-  create(input: { customerId?: string; projectId?: string; title: string; status: Quote['status']; taxRate: number; lineItems: Array<Omit<QuoteLineItem, 'id'>> }, user: AuthenticatedUser) {
+  async create(input: { customerId?: string; projectId?: string; title: string; status: Quote['status']; taxRate: number; lineItems: Array<Omit<QuoteLineItem, 'id'>> }, user: AuthenticatedUser) {
     const lineItems = input.lineItems.map((item) => ({ id: crypto.randomUUID(), ...item }));
     const calculated = totals(lineItems, input.taxRate);
-    return businessRepository.createQuote({ ...input, lineItems, ...calculated, converted: false, createdBy: user.id });
+    const quote = await businessRepository.createQuote({ ...input, lineItems, ...calculated, converted: false, createdBy: user.id });
+    await activityService.record({
+      entityType: 'quote',
+      entityId: quote.id,
+      action: 'created',
+      summary: `Quote ${quote.title} was created for $${quote.total.toFixed(2)}.`,
+      actorUserId: user.id,
+      relatedCustomerId: quote.customerId,
+      relatedProjectId: quote.projectId,
+    });
+    return quote;
   },
 
-  async update(id: string, input: Partial<{ customerId?: string; projectId?: string; title: string; status: Quote['status']; taxRate: number; lineItems: Array<Omit<QuoteLineItem, 'id'>> }>) {
+  async update(id: string, input: Partial<{ customerId?: string; projectId?: string; title: string; status: Quote['status']; taxRate: number; lineItems: Array<Omit<QuoteLineItem, 'id'>> }>, user: AuthenticatedUser) {
     const existing = await businessRepository.findQuoteById(id);
     if (!existing) throw notFound('Quote');
     if (existing.converted) throw new HttpError(409, 'Converted quotes are locked.');
@@ -236,12 +323,31 @@ export const quoteService = {
     const calculated = lineItems ? totals(lineItems, input.taxRate ?? 0) : {};
     const quote = await businessRepository.updateQuote(id, { ...input, lineItems, ...calculated });
     if (!quote) throw notFound('Quote');
+    await activityService.record({
+      entityType: 'quote',
+      entityId: quote.id,
+      action: 'updated',
+      summary: `Quote ${quote.title} was updated.`,
+      actorUserId: user.id,
+      relatedCustomerId: quote.customerId,
+      relatedProjectId: quote.projectId,
+    });
     return quote;
   },
 
-  async delete(id: string) {
+  async delete(id: string, user: AuthenticatedUser) {
+    const existing = await businessRepository.findQuoteById(id);
     const deleted = await businessRepository.deleteQuote(id);
     if (!deleted) throw notFound('Quote');
+    await activityService.record({
+      entityType: 'quote',
+      entityId: id,
+      action: 'deleted',
+      summary: `Quote ${existing?.title ?? id} was deleted.`,
+      actorUserId: user.id,
+      relatedCustomerId: existing?.customerId,
+      relatedProjectId: existing?.projectId,
+    });
   },
 };
 
@@ -306,7 +412,17 @@ export const invoiceService = {
     });
 
     await businessRepository.appendInvoiceAudit(invoice.id, { userId: user.id, action: auditAction });
-    return this.get(invoice.id);
+    const fullInvoice = await this.get(invoice.id);
+    await activityService.record({
+      entityType: 'invoice',
+      entityId: fullInvoice.id,
+      action: auditAction.replace(/\s+/g, '_'),
+      summary: `Invoice ${fullInvoice.invoiceNumber} was ${auditAction}.`,
+      actorUserId: user.id,
+      relatedCustomerId: fullInvoice.customerId,
+      relatedProjectId: fullInvoice.projectId,
+    });
+    return fullInvoice;
   },
 
   async update(
@@ -339,7 +455,18 @@ export const invoiceService = {
       paidAt: input.status === 'paid' ? new Date().toISOString() : undefined,
     });
     if (!invoice) throw notFound('Invoice');
-    if (user) await businessRepository.appendInvoiceAudit(id, { userId: user.id, action: 'updated' });
+    if (user) {
+      await businessRepository.appendInvoiceAudit(id, { userId: user.id, action: 'updated' });
+      await activityService.record({
+        entityType: 'invoice',
+        entityId: invoice.id,
+        action: 'updated',
+        summary: `Invoice ${invoice.invoiceNumber} was updated.`,
+        actorUserId: user.id,
+        relatedCustomerId: invoice.customerId,
+        relatedProjectId: invoice.projectId,
+      });
+    }
     return invoice;
   },
 
@@ -370,12 +497,31 @@ export const invoiceService = {
       link: '/invoices',
       emailQueued: false,
     });
+    await activityService.record({
+      entityType: 'invoice',
+      entityId: updated.id,
+      action: `status_${nextStatus}`,
+      summary: `Invoice ${updated.invoiceNumber} moved to ${nextStatus}.`,
+      actorUserId: user.id,
+      relatedCustomerId: updated.customerId,
+      relatedProjectId: updated.projectId,
+    });
     return this.get(id);
   },
 
-  async delete(id: string) {
+  async delete(id: string, user: AuthenticatedUser) {
+    const existing = await this.get(id);
     const deleted = await businessRepository.deleteInvoice(id);
     if (!deleted) throw notFound('Invoice');
+    await activityService.record({
+      entityType: 'invoice',
+      entityId: id,
+      action: 'deleted',
+      summary: `Invoice ${existing.invoiceNumber} was deleted.`,
+      actorUserId: user.id,
+      relatedCustomerId: existing.customerId,
+      relatedProjectId: existing.projectId,
+    });
   },
 
   async markDueInvoicesOverdue() {
@@ -387,6 +533,15 @@ export const invoiceService = {
       const updated = await businessRepository.updateInvoice(invoice.id, { status: 'overdue' });
       if (!updated) continue;
       await businessRepository.appendInvoiceAudit(invoice.id, { userId: 'system', action: 'status sent -> overdue (job)' });
+      await activityService.record({
+        entityType: 'invoice',
+        entityId: updated.id,
+        action: 'status_overdue_job',
+        summary: `Invoice ${updated.invoiceNumber} was marked overdue by a background job.`,
+        actorUserId: 'system',
+        relatedCustomerId: updated.customerId,
+        relatedProjectId: updated.projectId,
+      });
       await notificationService.notifyRole('admin', {
         type: 'deadline',
         title: 'Invoice overdue',

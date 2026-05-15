@@ -1,6 +1,7 @@
 import { operationsRepository } from '../repositories/operations.repository.js';
 import { userRepository } from '../repositories/user.repository.js';
 import { HttpError } from '../utils/http-error.js';
+import { activityService } from './activity.service.js';
 import { googleWorkspaceService } from './googleWorkspace.service.js';
 import { notificationService } from './notification.service.js';
 const notFound = (label) => new HttpError(404, `${label} not found.`);
@@ -16,8 +17,16 @@ const extractDriveFolderId = (value) => {
 };
 export const customerService = {
     list: (filters) => operationsRepository.listCustomers(filters),
-    async create(input) {
+    async create(input, user) {
         const customer = await operationsRepository.createCustomer(input);
+        await activityService.record({
+            entityType: 'customer',
+            entityId: customer.id,
+            action: 'created',
+            summary: `Customer ${customer.companyName} was created.`,
+            actorUserId: user.id,
+            relatedCustomerId: customer.id,
+        });
         await notificationService.notifyRole('admin', {
             type: 'workflow',
             title: 'Customer created',
@@ -27,34 +36,76 @@ export const customerService = {
         });
         return customer;
     },
-    async update(id, input) {
+    async update(id, input, user) {
         const customer = await operationsRepository.updateCustomer(id, input);
         if (!customer)
             throw notFound('Customer');
+        await activityService.record({
+            entityType: 'customer',
+            entityId: customer.id,
+            action: 'updated',
+            summary: `Customer ${customer.companyName} was updated.`,
+            actorUserId: user.id,
+            relatedCustomerId: customer.id,
+        });
         return customer;
     },
-    async delete(id) {
+    async delete(id, user) {
+        const existing = (await operationsRepository.listCustomers({})).find((customer) => customer.id === id);
         const deleted = await operationsRepository.deleteCustomer(id);
         if (!deleted)
             throw notFound('Customer');
+        await activityService.record({
+            entityType: 'customer',
+            entityId: id,
+            action: 'deleted',
+            summary: `Customer ${existing?.companyName ?? id} was deleted.`,
+            actorUserId: user.id,
+            relatedCustomerId: id,
+        });
     },
-    async addContact(id, input) {
+    async addContact(id, input, user) {
         const customer = await operationsRepository.addCustomerContact(id, input);
         if (!customer)
             throw notFound('Customer');
+        await activityService.record({
+            entityType: 'customer',
+            entityId: customer.id,
+            action: 'contact_added',
+            summary: `A contact was added to ${customer.companyName}.`,
+            actorUserId: user.id,
+            relatedCustomerId: customer.id,
+        });
         return customer;
     },
     async addNote(id, body, user) {
         const customer = await operationsRepository.addCustomerNote(id, { body, createdBy: user.id });
         if (!customer)
             throw notFound('Customer');
+        await activityService.record({
+            entityType: 'customer',
+            entityId: customer.id,
+            action: 'note_added',
+            summary: `A customer note was added to ${customer.companyName}.`,
+            actorUserId: user.id,
+            relatedCustomerId: customer.id,
+        });
         return customer;
     },
 };
 export const projectService = {
     list: (filters) => operationsRepository.listProjects(filters),
-    async create(input) {
+    async create(input, user) {
         const project = await operationsRepository.createProject(input);
+        await activityService.record({
+            entityType: 'project',
+            entityId: project.id,
+            action: 'created',
+            summary: `Project ${project.projectName} was created.`,
+            actorUserId: user.id,
+            relatedCustomerId: project.customerId,
+            relatedProjectId: project.id,
+        });
         await notificationService.notifyRole('project_manager', {
             type: 'workflow',
             title: 'Project created',
@@ -64,21 +115,49 @@ export const projectService = {
         });
         return project;
     },
-    async update(id, input) {
+    async update(id, input, user) {
         const project = await operationsRepository.updateProject(id, input);
         if (!project)
             throw notFound('Project');
+        await activityService.record({
+            entityType: 'project',
+            entityId: project.id,
+            action: 'updated',
+            summary: `Project ${project.projectName} was updated.`,
+            actorUserId: user.id,
+            relatedCustomerId: project.customerId,
+            relatedProjectId: project.id,
+        });
         return project;
     },
-    async delete(id) {
+    async delete(id, user) {
+        const existing = await operationsRepository.findProjectById(id);
         const deleted = await operationsRepository.deleteProject(id);
         if (!deleted)
             throw notFound('Project');
+        await activityService.record({
+            entityType: 'project',
+            entityId: id,
+            action: 'deleted',
+            summary: `Project ${existing?.projectName ?? id} was deleted.`,
+            actorUserId: user.id,
+            relatedCustomerId: existing?.customerId,
+            relatedProjectId: id,
+        });
     },
-    async addMilestone(id, input) {
+    async addMilestone(id, input, user) {
         const project = await operationsRepository.addMilestone(id, input);
         if (!project)
             throw notFound('Project');
+        await activityService.record({
+            entityType: 'project',
+            entityId: project.id,
+            action: 'milestone_added',
+            summary: `Milestone "${input.title}" was added to ${project.projectName}.`,
+            actorUserId: user.id,
+            relatedCustomerId: project.customerId,
+            relatedProjectId: project.id,
+        });
         return project;
     },
     async createDriveFolder(id, user, folderName) {
@@ -104,6 +183,15 @@ export const projectService = {
         });
         if (!updated)
             throw notFound('Project');
+        await activityService.record({
+            entityType: 'project',
+            entityId: updated.id,
+            action: 'drive_folder_created',
+            summary: `A Drive folder was created for ${updated.projectName}.`,
+            actorUserId: user.id,
+            relatedCustomerId: updated.customerId,
+            relatedProjectId: updated.id,
+        });
         await notificationService.notifyRole('project_manager', {
             type: 'workflow',
             title: 'Drive folder linked',
@@ -136,6 +224,15 @@ export const projectService = {
         });
         if (!updated)
             throw notFound('Project');
+        await activityService.record({
+            entityType: 'project',
+            entityId: updated.id,
+            action: 'drive_folder_attached',
+            summary: `An existing Drive folder was attached to ${updated.projectName}.`,
+            actorUserId: user.id,
+            relatedCustomerId: updated.customerId,
+            relatedProjectId: updated.id,
+        });
         await notificationService.notifyRole('project_manager', {
             type: 'workflow',
             title: 'Drive folder attached',
@@ -148,8 +245,16 @@ export const projectService = {
 };
 export const taskService = {
     list: (filters) => operationsRepository.listTasks(filters),
-    async create(input) {
+    async create(input, user) {
         const task = await operationsRepository.createTask(input);
+        await activityService.record({
+            entityType: 'task',
+            entityId: task.id,
+            action: 'created',
+            summary: `Task ${task.title} was created.`,
+            actorUserId: user.id,
+            relatedProjectId: task.projectId,
+        });
         if (task.assignedTo) {
             await notificationService.notifyRole('admin', {
                 type: 'assignment',
@@ -161,21 +266,46 @@ export const taskService = {
         }
         return task;
     },
-    async update(id, input) {
+    async update(id, input, user) {
         const task = await operationsRepository.updateTask(id, input);
         if (!task)
             throw notFound('Task');
+        await activityService.record({
+            entityType: 'task',
+            entityId: task.id,
+            action: 'updated',
+            summary: `Task ${task.title} was updated.`,
+            actorUserId: user.id,
+            relatedProjectId: task.projectId,
+        });
         return task;
     },
-    async delete(id) {
+    async delete(id, user) {
+        const existing = (await operationsRepository.listTasks({})).find((task) => task.id === id);
         const deleted = await operationsRepository.deleteTask(id);
         if (!deleted)
             throw notFound('Task');
+        await activityService.record({
+            entityType: 'task',
+            entityId: id,
+            action: 'deleted',
+            summary: `Task ${existing?.title ?? id} was deleted.`,
+            actorUserId: user.id,
+            relatedProjectId: existing?.projectId,
+        });
     },
     async addComment(id, body, user) {
         const task = await operationsRepository.addTaskComment(id, { body, createdBy: user.id });
         if (!task)
             throw notFound('Task');
+        await activityService.record({
+            entityType: 'task',
+            entityId: task.id,
+            action: 'comment_added',
+            summary: `A comment was added to task ${task.title}.`,
+            actorUserId: user.id,
+            relatedProjectId: task.projectId,
+        });
         return task;
     },
 };

@@ -25,17 +25,17 @@ export const customerController = {
     response.json({ customers: await customerService.list(listCustomersSchema.parse(request.query)) });
   },
   async create(request: Request, response: Response) {
-    response.status(201).json({ customer: await customerService.create(customerSchema.parse(request.body)) });
+    response.status(201).json({ customer: await customerService.create(customerSchema.parse(request.body), request.user!) });
   },
   async update(request: Request, response: Response) {
-    response.json({ customer: await customerService.update(param(request, 'id'), customerSchema.partial().parse(request.body)) });
+    response.json({ customer: await customerService.update(param(request, 'id'), customerSchema.partial().parse(request.body), request.user!) });
   },
   async delete(request: Request, response: Response) {
-    await customerService.delete(param(request, 'id'));
+    await customerService.delete(param(request, 'id'), request.user!);
     response.status(204).send();
   },
   async addContact(request: Request, response: Response) {
-    response.status(201).json({ customer: await customerService.addContact(param(request, 'id'), customerContactSchema.parse(request.body)) });
+    response.status(201).json({ customer: await customerService.addContact(param(request, 'id'), customerContactSchema.parse(request.body), request.user!) });
   },
   async addNote(request: Request, response: Response) {
     const input = noteSchema.parse(request.body);
@@ -48,17 +48,17 @@ export const projectController = {
     response.json({ projects: await projectService.list(listProjectsSchema.parse(request.query)) });
   },
   async create(request: Request, response: Response) {
-    response.status(201).json({ project: await projectService.create({ ...projectSchema.parse(request.body), createdBy: request.user!.id }) });
+    response.status(201).json({ project: await projectService.create({ ...projectSchema.parse(request.body), createdBy: request.user!.id }, request.user!) });
   },
   async update(request: Request, response: Response) {
-    response.json({ project: await projectService.update(param(request, 'id'), projectSchema.partial().parse(request.body)) });
+    response.json({ project: await projectService.update(param(request, 'id'), projectSchema.partial().parse(request.body), request.user!) });
   },
   async delete(request: Request, response: Response) {
-    await projectService.delete(param(request, 'id'));
+    await projectService.delete(param(request, 'id'), request.user!);
     response.status(204).send();
   },
   async addMilestone(request: Request, response: Response) {
-    response.status(201).json({ project: await projectService.addMilestone(param(request, 'id'), milestoneSchema.parse(request.body)) });
+    response.status(201).json({ project: await projectService.addMilestone(param(request, 'id'), milestoneSchema.parse(request.body), request.user!) });
   },
   async createDriveFolder(request: Request, response: Response) {
     const input = createDriveFolderSchema.parse(request.body);
@@ -75,13 +75,13 @@ export const taskController = {
     response.json({ tasks: await taskService.list(listTasksSchema.parse(request.query)) });
   },
   async create(request: Request, response: Response) {
-    response.status(201).json({ task: await taskService.create({ ...taskSchema.parse(request.body), createdBy: request.user!.id }) });
+    response.status(201).json({ task: await taskService.create({ ...taskSchema.parse(request.body), createdBy: request.user!.id }, request.user!) });
   },
   async update(request: Request, response: Response) {
-    response.json({ task: await taskService.update(param(request, 'id'), taskSchema.partial().parse(request.body)) });
+    response.json({ task: await taskService.update(param(request, 'id'), taskSchema.partial().parse(request.body), request.user!) });
   },
   async delete(request: Request, response: Response) {
-    await taskService.delete(param(request, 'id'));
+    await taskService.delete(param(request, 'id'), request.user!);
     response.status(204).send();
   },
   async addComment(request: Request, response: Response) {

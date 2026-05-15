@@ -5,6 +5,7 @@ import { AuthProvider } from './features/auth/AuthContext';
 import { ProtectedRoute } from './features/auth/ProtectedRoute';
 import { ThemeProvider } from './features/theme/ThemeContext';
 import { AppLayout } from './layouts/AppLayout';
+import { ActivityPage } from './pages/ActivityPage';
 import { CrmPage } from './pages/CrmPage';
 import { Dashboard } from './pages/Dashboard';
 import { FilesPage } from './pages/FilesPage';
@@ -14,6 +15,7 @@ import { InvoicesPage } from './pages/InvoicesPage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { QuotesPage } from './pages/QuotesPage';
+import { SchedulePage } from './pages/SchedulePage';
 import { TasksPage } from './pages/TasksPage';
 import { TimeTrackingPage } from './pages/TimeTrackingPage';
 import { UserManagementPage } from './pages/UserManagementPage';
@@ -32,11 +34,13 @@ export function App() {
               <Route path="/crm" element={<CrmPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/tasks" element={<TasksPage />} />
+              <Route path="/schedule" element={<SchedulePage />} />
               <Route path="/files" element={<FilesPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route path="/time" element={<TimeTrackingPage />} />
               <Route path="/quotes" element={<QuotesPage />} />
               <Route path="/invoices" element={<InvoicesPage />} />
+              <Route path="/activity" element={<ActivityPage />} />
               <Route path="/forbidden" element={<ForbiddenPage />} />
               <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
                 <Route path="/users" element={<UserManagementPage />} />

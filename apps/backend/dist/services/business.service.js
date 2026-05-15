@@ -3,6 +3,7 @@ import { businessRepository } from '../repositories/business.repository.js';
 import { operationsRepository } from '../repositories/operations.repository.js';
 import { userRepository } from '../repositories/user.repository.js';
 import { HttpError } from '../utils/http-error.js';
+import { activityService } from './activity.service.js';
 import { fileStorageService } from './fileStorage.service.js';
 import { googleWorkspaceService } from './googleWorkspace.service.js';
 import { calculateInvoiceTotals } from './invoiceCalculator.js';
@@ -66,15 +67,31 @@ export const documentService = {
             link: '/files',
             emailQueued: false,
         });
+        await activityService.record({
+            entityType: 'document',
+            entityId: document.id,
+            action: 'created',
+            summary: `Document ${document.fileName} revision ${document.revision} was uploaded.`,
+            actorUserId: user.id,
+            relatedProjectId: document.projectId,
+        });
         return document;
     },
-    async update(id, input) {
+    async update(id, input, user) {
         const document = await businessRepository.updateDocument(id, {
             ...input,
             lockedBy: input.status && input.status !== 'locked' ? undefined : input.lockedBy,
         });
         if (!document)
             throw notFound('Document');
+        await activityService.record({
+            entityType: 'document',
+            entityId: document.id,
+            action: 'updated',
+            summary: `Document ${document.fileName} was updated.`,
+            actorUserId: user.id,
+            relatedProjectId: document.projectId,
+        });
         return document;
     },
     async revise(id, input, user) {
@@ -126,6 +143,14 @@ export const documentService = {
         });
         if (!document)
             throw notFound('Document');
+        await activityService.record({
+            entityType: 'document',
+            entityId: document.id,
+            action: 'revised',
+            summary: `Document ${document.fileName} advanced to revision ${document.revision}.`,
+            actorUserId: user.id,
+            relatedProjectId: document.projectId,
+        });
         return document;
     },
     async download(id) {
@@ -141,25 +166,51 @@ export const documentService = {
             absolutePath: fileStorageService.resolve(document.storagePath),
         };
     },
-    async delete(id) {
+    async delete(id, user) {
+        const [existing] = (await businessRepository.listDocuments({})).filter((item) => item.id === id);
         const deleted = await businessRepository.deleteDocument(id);
         if (!deleted)
             throw notFound('Document');
+        await activityService.record({
+            entityType: 'document',
+            entityId: id,
+            action: 'deleted',
+            summary: `Document ${existing?.fileName ?? id} was deleted.`,
+            actorUserId: user.id,
+            relatedProjectId: existing?.projectId,
+        });
     },
 };
 export const timeService = {
     list: (filters) => businessRepository.listTimeEntries(filters),
-    create(input, user) {
-        return businessRepository.createTimeEntry({ ...input, userId: user.id });
+    async create(input, user) {
+        const entry = await businessRepository.createTimeEntry({ ...input, userId: user.id });
+        await activityService.record({
+            entityType: 'time_entry',
+            entityId: entry.id,
+            action: 'created',
+            summary: `A ${entry.hours.toFixed(2)} hour time entry was logged.`,
+            actorUserId: user.id,
+            relatedProjectId: entry.projectId,
+        });
+        return entry;
     },
-    async update(id, input) {
+    async update(id, input, user) {
         const entry = await businessRepository.updateTimeEntry(id, input);
         if (!entry)
             throw notFound('Time entry');
+        await activityService.record({
+            entityType: 'time_entry',
+            entityId: entry.id,
+            action: 'updated',
+            summary: `Time entry ${entry.id} was updated.`,
+            actorUserId: user.id,
+            relatedProjectId: entry.projectId,
+        });
         return entry;
     },
-    startTimer(input, user) {
-        return businessRepository.createTimeEntry({
+    async startTimer(input, user) {
+        const entry = await businessRepository.createTimeEntry({
             ...input,
             userId: user.id,
             hours: 0,
@@ -167,8 +218,17 @@ export const timeService = {
             status: 'draft',
             startedAt: new Date().toISOString(),
         });
+        await activityService.record({
+            entityType: 'time_entry',
+            entityId: entry.id,
+            action: 'timer_started',
+            summary: 'A live time tracker was started.',
+            actorUserId: user.id,
+            relatedProjectId: entry.projectId,
+        });
+        return entry;
     },
-    async stopTimer(id) {
+    async stopTimer(id, user) {
         const existing = (await businessRepository.listTimeEntries({})).find((item) => item.id === id);
         if (!existing)
             throw notFound('Time entry');
@@ -179,12 +239,29 @@ export const timeService = {
         const updated = await businessRepository.updateTimeEntry(id, { endedAt, hours: Math.max(hours, 0.01) });
         if (!updated)
             throw notFound('Time entry');
+        await activityService.record({
+            entityType: 'time_entry',
+            entityId: updated.id,
+            action: 'timer_stopped',
+            summary: `A live time tracker was stopped at ${updated.hours.toFixed(2)} hours.`,
+            actorUserId: user.id,
+            relatedProjectId: updated.projectId,
+        });
         return updated;
     },
-    async delete(id) {
+    async delete(id, user) {
+        const existing = (await businessRepository.listTimeEntries({})).find((item) => item.id === id);
         const deleted = await businessRepository.deleteTimeEntry(id);
         if (!deleted)
             throw notFound('Time entry');
+        await activityService.record({
+            entityType: 'time_entry',
+            entityId: id,
+            action: 'deleted',
+            summary: `Time entry ${id} was deleted.`,
+            actorUserId: user.id,
+            relatedProjectId: existing?.projectId,
+        });
     },
 };
 export const quoteService = {
@@ -195,12 +272,22 @@ export const quoteService = {
             throw notFound('Quote');
         return quote;
     },
-    create(input, user) {
+    async create(input, user) {
         const lineItems = input.lineItems.map((item) => ({ id: crypto.randomUUID(), ...item }));
         const calculated = totals(lineItems, input.taxRate);
-        return businessRepository.createQuote({ ...input, lineItems, ...calculated, converted: false, createdBy: user.id });
+        const quote = await businessRepository.createQuote({ ...input, lineItems, ...calculated, converted: false, createdBy: user.id });
+        await activityService.record({
+            entityType: 'quote',
+            entityId: quote.id,
+            action: 'created',
+            summary: `Quote ${quote.title} was created for $${quote.total.toFixed(2)}.`,
+            actorUserId: user.id,
+            relatedCustomerId: quote.customerId,
+            relatedProjectId: quote.projectId,
+        });
+        return quote;
     },
-    async update(id, input) {
+    async update(id, input, user) {
         const existing = await businessRepository.findQuoteById(id);
         if (!existing)
             throw notFound('Quote');
@@ -211,12 +298,31 @@ export const quoteService = {
         const quote = await businessRepository.updateQuote(id, { ...input, lineItems, ...calculated });
         if (!quote)
             throw notFound('Quote');
+        await activityService.record({
+            entityType: 'quote',
+            entityId: quote.id,
+            action: 'updated',
+            summary: `Quote ${quote.title} was updated.`,
+            actorUserId: user.id,
+            relatedCustomerId: quote.customerId,
+            relatedProjectId: quote.projectId,
+        });
         return quote;
     },
-    async delete(id) {
+    async delete(id, user) {
+        const existing = await businessRepository.findQuoteById(id);
         const deleted = await businessRepository.deleteQuote(id);
         if (!deleted)
             throw notFound('Quote');
+        await activityService.record({
+            entityType: 'quote',
+            entityId: id,
+            action: 'deleted',
+            summary: `Quote ${existing?.title ?? id} was deleted.`,
+            actorUserId: user.id,
+            relatedCustomerId: existing?.customerId,
+            relatedProjectId: existing?.projectId,
+        });
     },
 };
 export const invoiceService = {
@@ -261,7 +367,17 @@ export const invoiceService = {
             createdBy: user.id,
         });
         await businessRepository.appendInvoiceAudit(invoice.id, { userId: user.id, action: auditAction });
-        return this.get(invoice.id);
+        const fullInvoice = await this.get(invoice.id);
+        await activityService.record({
+            entityType: 'invoice',
+            entityId: fullInvoice.id,
+            action: auditAction.replace(/\s+/g, '_'),
+            summary: `Invoice ${fullInvoice.invoiceNumber} was ${auditAction}.`,
+            actorUserId: user.id,
+            relatedCustomerId: fullInvoice.customerId,
+            relatedProjectId: fullInvoice.projectId,
+        });
+        return fullInvoice;
     },
     async update(id, input, user) {
         const existing = await this.get(id);
@@ -280,8 +396,18 @@ export const invoiceService = {
         });
         if (!invoice)
             throw notFound('Invoice');
-        if (user)
+        if (user) {
             await businessRepository.appendInvoiceAudit(id, { userId: user.id, action: 'updated' });
+            await activityService.record({
+                entityType: 'invoice',
+                entityId: invoice.id,
+                action: 'updated',
+                summary: `Invoice ${invoice.invoiceNumber} was updated.`,
+                actorUserId: user.id,
+                relatedCustomerId: invoice.customerId,
+                relatedProjectId: invoice.projectId,
+            });
+        }
         return invoice;
     },
     async transition(id, nextStatus, user) {
@@ -310,12 +436,31 @@ export const invoiceService = {
             link: '/invoices',
             emailQueued: false,
         });
+        await activityService.record({
+            entityType: 'invoice',
+            entityId: updated.id,
+            action: `status_${nextStatus}`,
+            summary: `Invoice ${updated.invoiceNumber} moved to ${nextStatus}.`,
+            actorUserId: user.id,
+            relatedCustomerId: updated.customerId,
+            relatedProjectId: updated.projectId,
+        });
         return this.get(id);
     },
-    async delete(id) {
+    async delete(id, user) {
+        const existing = await this.get(id);
         const deleted = await businessRepository.deleteInvoice(id);
         if (!deleted)
             throw notFound('Invoice');
+        await activityService.record({
+            entityType: 'invoice',
+            entityId: id,
+            action: 'deleted',
+            summary: `Invoice ${existing.invoiceNumber} was deleted.`,
+            actorUserId: user.id,
+            relatedCustomerId: existing.customerId,
+            relatedProjectId: existing.projectId,
+        });
     },
     async markDueInvoicesOverdue() {
         const today = new Date().toISOString().slice(0, 10);
@@ -326,6 +471,15 @@ export const invoiceService = {
             if (!updated)
                 continue;
             await businessRepository.appendInvoiceAudit(invoice.id, { userId: 'system', action: 'status sent -> overdue (job)' });
+            await activityService.record({
+                entityType: 'invoice',
+                entityId: updated.id,
+                action: 'status_overdue_job',
+                summary: `Invoice ${updated.invoiceNumber} was marked overdue by a background job.`,
+                actorUserId: 'system',
+                relatedCustomerId: updated.customerId,
+                relatedProjectId: updated.projectId,
+            });
             await notificationService.notifyRole('admin', {
                 type: 'deadline',
                 title: 'Invoice overdue',
